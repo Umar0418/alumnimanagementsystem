@@ -1,54 +1,47 @@
-<?php
-header("Content-Type: application/json");
-header("Access-Control-Allow-Origin: *");
-
+<?php 
+error_reporting(0);
+header("Content-Type: application/json; charset=UTF-8");
 require "db.php";
 
-/* Get login data */
+/* ... (input reading and validation) ... */
 $email    = trim($_POST['email'] ?? '');
 $password = trim($_POST['password'] ?? '');
 
-/* Validation */
-if ($email == "" || $password == "") {
-    echo json_encode([
-        "status" => false,
-        "message" => "Email and password are required"
-    ]);
+if ($email === "" || $password === "") {
+    echo json_encode(["status" => false, "message" => "Email and password are required"]);
     exit;
 }
 
-/* Check user in users table */
-$sql = "SELECT id, name, email, phone, usertype, password 
-        FROM users 
-        WHERE email = ? AND password = ?";
+/* Fetch user by email */
+// CORRECTED: Added roll_no to the SELECT statement
+$sql = "SELECT id, roll_no, name, email, phone, usertype, password
+        FROM users
+        WHERE email = ?
+        LIMIT 1";
 
 $stmt = $conn->prepare($sql);
-$stmt->bind_param("ss", $email, $password);
+$stmt->bind_param("s", $email);
 $stmt->execute();
-
 $result = $stmt->get_result();
 
-if ($result->num_rows == 1) {
-
-    $user = $result->fetch_assoc();
-
-    echo json_encode([
-        "status" => true,
-        "message" => "Login successful",
-        "user" => [
-            "id" => $user['id'],
-            "name" => $user['name'],
-            "email" => $user['email'],
-            "phone" => $user['phone'],
-            "usertype" => $user['usertype']   // student / alumni / admin
-        ]
-    ]);
-
+if ($user = $result->fetch_assoc()) {
+    if ($user['password'] === $password) {
+        echo json_encode([
+            "status" => true,
+            "message" => "Login successful",
+            "user" => [
+                "id" => $user['id'],
+                "roll_no" => $user['roll_no'], // Added this crucial field
+                "name" => $user['name'],
+                "email" => $user['email'],
+                "phone" => $user['phone'],
+                "usertype" => $user['usertype']
+            ]
+        ]);
+    } else {
+        echo json_encode(["status" => false, "message" => "Incorrect password"]);
+    }
 } else {
-
-    echo json_encode([
-        "status" => false,
-        "message" => "Invalid email or password"
-    ]);
+    echo json_encode(["status" => false, "message" => "User not found"]);
 }
 ?>

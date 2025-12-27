@@ -2,7 +2,7 @@
 header("Content-Type: application/json");
 require "db.php";
 
-// This script fetches ALL announcements for the admin view.
+// This script fetches ALL announcements for the admin panel, with no parameters needed.
 $sql = "SELECT * FROM announcements ORDER BY created_at DESC";
 $result = $conn->query($sql);
 
