@@ -1,9 +1,7 @@
-<?php 
-error_reporting(0);
+<?php
 header("Content-Type: application/json; charset=UTF-8");
 require "db.php";
 
-/* ... (input reading and validation) ... */
 $email    = trim($_POST['email'] ?? '');
 $password = trim($_POST['password'] ?? '');
 
@@ -12,8 +10,7 @@ if ($email === "" || $password === "") {
     exit;
 }
 
-/* Fetch user by email */
-// CORRECTED: Added roll_no to the SELECT statement
+// THIS IS THE CRITICAL CHANGE: Ensure roll_no is in the SELECT statement
 $sql = "SELECT id, roll_no, name, email, phone, usertype, password
         FROM users
         WHERE email = ?
@@ -31,7 +28,7 @@ if ($user = $result->fetch_assoc()) {
             "message" => "Login successful",
             "user" => [
                 "id" => $user['id'],
-                "roll_no" => $user['roll_no'], // Added this crucial field
+                "roll_no" => $user['roll_no'], // AND THIS IS THE CRITICAL CHANGE
                 "name" => $user['name'],
                 "email" => $user['email'],
                 "phone" => $user['phone'],
