@@ -1,16 +1,20 @@
 <?php
 header("Content-Type: application/json");
+header("Access-Control-Allow-Origin: *");
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 require "db.php";
 
-/* Read JSON or form-data */
-$data = json_decode(file_get_contents("php://input"), true);
-if (!is_array($data)) {
-    $data = $_POST;
-}
+/* Read POST data */
+$roll_no     = trim($_POST['roll_no'] ?? '');
+$department  = trim($_POST['department'] ?? '');
+$batch_year  = trim($_POST['batch_year'] ?? '');
+$company     = trim($_POST['company'] ?? '');
+$location    = trim($_POST['location'] ?? '');
+$mentorship  = isset($_POST['mentorship']) ? (int)$_POST['mentorship'] : 0;
 
-/* Logged-in alumni roll_no */
-$roll_no = trim($data['roll_no'] ?? '');
-
+/* Validate */
 if ($roll_no === '') {
     echo json_encode([
         "status" => false,
@@ -19,48 +23,76 @@ if ($roll_no === '') {
     exit;
 }
 
-/* Fields to update (optional but allowed) */
-$name        = trim($data['name'] ?? '');
-$department  = trim($data['department'] ?? '');
-$batch_year  = trim($data['batch_year'] ?? '');
-$company     = trim($data['company'] ?? '');
-$location    = trim($data['location'] ?? '');
-$mentorship  = trim($data['mentorship'] ?? '');
-
-/* Ensure alumni profile exists */
+/* Check if alumni already exists */
 $check = $conn->prepare(
-    "SELECT id FROM alumni_directory WHERE roll_no = ?"
+    "SELECT roll_no FROM alumni_directory WHERE roll_no = ?"
 );
-$check->bind_param("s", $roll_no);
-$check->execute();
-$res = $check->get_result();
 
-if ($res->num_rows === 0) {
+if (!$check) {
     echo json_encode([
         "status" => false,
-        "message" => "Alumni profile does not exist"
+        "error" => $conn->error
     ]);
     exit;
 }
 
-/* Update ONLY this alumni */
-$sql = "UPDATE alumni_directory
-        SET name = ?, department = ?, batch_year = ?,
-            company = ?, location = ?, mentorship = ?
-        WHERE roll_no = ?";
+$check->bind_param("s", $roll_no);
+$check->execute();
+$check->store_result();
 
-$stmt = $conn->prepare($sql);
-$stmt->bind_param(
-    "sssssss",
-    $name,
-    $department,
-    $batch_year,
-    $company,
-    $location,
-    $mentorship,
-    $roll_no
-);
+/* If not exists → INSERT, else UPDATE */
+if ($check->num_rows === 0) {
 
+    // INSERT new profile
+    $sql = "INSERT INTO alumni_directory
+            (roll_no, department, batch_year, company, location, mentorship)
+            VALUES (?, ?, ?, ?, ?, ?)";
+
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        echo json_encode(["status"=>false,"error"=>$conn->error]);
+        exit;
+    }
+
+    $stmt->bind_param(
+        "sssssi",
+        $roll_no,
+        $department,
+        $batch_year,
+        $company,
+        $location,
+        $mentorship
+    );
+
+} else {
+
+    // UPDATE existing profile
+    $sql = "UPDATE alumni_directory
+            SET department = ?,
+                batch_year = ?,
+                company = ?,
+                location = ?,
+                mentorship = ?
+            WHERE roll_no = ?";
+
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        echo json_encode(["status"=>false,"error"=>$conn->error]);
+        exit;
+    }
+
+    $stmt->bind_param(
+        "ssssis",
+        $department,
+        $batch_year,
+        $company,
+        $location,
+        $mentorship,
+        $roll_no
+    );
+}
+
+/* Execute */
 if ($stmt->execute()) {
     echo json_encode([
         "status" => true,
@@ -69,6 +101,9 @@ if ($stmt->execute()) {
 } else {
     echo json_encode([
         "status" => false,
-        "message" => "Failed to update alumni profile"
+        "error" => $stmt->error
     ]);
 }
+
+$conn->close();
+?>

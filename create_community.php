@@ -1,12 +1,16 @@
 <?php
 header("Content-Type: application/json");
+header("Access-Control-Allow-Origin: *");
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 require "db.php";
 
-$roll_no = $_POST['roll_no'] ?? '';
-$name = $_POST['name'] ?? '';
-$description = $_POST['description'] ?? '';
+/* Read POST data */
+$name = trim($_POST['name'] ?? '');
+$description = trim($_POST['description'] ?? '');
 
-if ($roll_no == '' || $name == '') {
+if ($name === "" || $description === "") {
     echo json_encode([
         "status" => false,
         "message" => "Missing required fields"
@@ -14,13 +18,21 @@ if ($roll_no == '' || $name == '') {
     exit;
 }
 
-// Check if community with same name exists
-$checkExisting = $conn->prepare("SELECT id FROM communities WHERE name = ?");
-$checkExisting->bind_param("s", $name);
-$checkExisting->execute();
-$checkExisting->store_result();
+/* Duplicate check */
+$check = $conn->prepare(
+    "SELECT id FROM communities WHERE name = ?"
+);
 
-if ($checkExisting->num_rows > 0) {
+if (!$check) {
+    echo json_encode(["error" => $conn->error]);
+    exit;
+}
+
+$check->bind_param("s", $name);
+$check->execute();
+$check->store_result();
+
+if ($check->num_rows > 0) {
     echo json_encode([
         "status" => false,
         "message" => "A community with this name already exists"
@@ -28,31 +40,28 @@ if ($checkExisting->num_rows > 0) {
     exit;
 }
 
-// Insert new community
-$sql = "INSERT INTO communities (name, description, created_by, member_count, created_at) 
-        VALUES (?, ?, ?, 1, NOW())";
+/* Insert */
+$sql = "INSERT INTO communities (name, description)
+        VALUES (?, ?)";
+
 $stmt = $conn->prepare($sql);
-$stmt->bind_param("sss", $name, $description, $roll_no);
+
+if (!$stmt) {
+    echo json_encode(["error" => $conn->error]);
+    exit;
+}
+
+$stmt->bind_param("ss", $name, $description);
 
 if ($stmt->execute()) {
-    $communityId = $conn->insert_id;
-    
-    // Add creator as member
-    $memberSql = "INSERT INTO community_members (community_id, roll_no, joined_at) VALUES (?, ?, NOW())";
-    $memberStmt = $conn->prepare($memberSql);
-    $memberStmt->bind_param("is", $communityId, $roll_no);
-    $memberStmt->execute();
-    
     echo json_encode([
         "status" => true,
-        "message" => "Community created successfully!"
+        "message" => "Community created successfully"
     ]);
 } else {
     echo json_encode([
         "status" => false,
-        "message" => "Failed to create community: " . $conn->error
+        "error" => $stmt->error
     ]);
 }
-
-$conn->close();
 ?>
