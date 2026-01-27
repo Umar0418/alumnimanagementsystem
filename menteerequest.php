@@ -47,13 +47,16 @@ if ($checkMentor->num_rows == 0) {
     exit;
 }
 
+
 /* Insert mentee request */
+$topic = $_POST['topic'] ?? 'General Mentorship';
+
 $sql = "INSERT INTO mentee_requests
-(roll_no, mentor_roll_no, status)
-VALUES (?, ?, 'pending')";
+(roll_no, mentor_roll_no, topic, status)
+VALUES (?, ?, ?, 'pending')";
 
 $stmt = $conn->prepare($sql);
-$stmt->bind_param("ss", $roll_no, $mentor_roll_no);
+$stmt->bind_param("sss", $roll_no, $mentor_roll_no, $topic);
 $stmt->execute();
 
 echo json_encode([

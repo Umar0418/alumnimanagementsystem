@@ -1,14 +1,17 @@
 <?php
-$host = "localhost";      // Database host
-$user = "root";           // Database username
-$pass = "";               // Database password (keep empty for XAMPP)
-$db   = "alumnidata";  // Your database name
+$host = "localhost";
+$user = "root";
+$pass = "";
+$db   = "alumnidata";
 
-// Create connection
 $conn = mysqli_connect($host, $user, $pass, $db);
 
-// Check connection
 if (!$conn) {
-    die("Connection failed: " . mysqli_connect_error());
+    header("Content-Type: application/json");
+    echo json_encode([
+        "status" => false,
+        "message" => "Database connection failed: " . mysqli_connect_error()
+    ]);
+    exit;
 }
 ?>
